@@ -19,6 +19,7 @@ class Player {
 
         ArrayList<Integer> ghosts = new ArrayList<Integer>();
         ArrayList<Integer> ghostBusters = new ArrayList<Integer>();
+        ArrayList<Integer> opponentBusters = new ArrayList<Integer>();
         busterTargetXY = new ArrayList<Integer>();
 
         int homeX = 0;
@@ -35,6 +36,7 @@ class Player {
         while (true) {
             ghosts = new ArrayList<Integer>();
             ghostBusters = new ArrayList<Integer>();
+            opponentBusters = new ArrayList<Integer>();
 
             int entities = in.nextInt(); // the number of busters and ghosts visible to you
             for (int i = 0; i < entities; i++) {
@@ -56,10 +58,43 @@ class Player {
                     ghostBusters.add(x);
                     ghostBusters.add(y);
                     ghostBusters.add(state);
+                } else {
+                    opponentBusters.add(x);
+                    opponentBusters.add(y);
+                    opponentBusters.add(entityId);
+                    opponentBusters.add(state);
                 }
 
             }
+            mainLoop:
             for (int i = 0; i < bustersPerPlayer; i++) {
+
+                 // at least one opponent in vicinity of the buster
+                if (opponentBusters.size() > 0) {
+                    ArrayList<Integer> distPerOpponent = new ArrayList<Integer>();
+                    System.err.println( "near buster " + i +" Opp*4: " + opponentBusters.size() );
+                    for ( int j = 0; j < opponentBusters.size(); j += 4 ) {
+
+                        int dist = distance( ghostBusters.get(i * 3),
+                                     ghostBusters.get(i * 3 + 1),
+                                     opponentBusters.get(j),
+                                     opponentBusters.get(j + 1)
+                                    );
+
+                        distPerOpponent.add(dist);
+                    }
+
+                    int target = ElementWithMinDist( distPerOpponent );
+                    int targetDist = distPerOpponent.get (target);
+
+                    // only STUN if already in range, otherwise don't move towards them
+                    // if opponent already stunned (status 2), no need to calculate distance
+                    if ( targetDist < 1760 && opponentBusters.get(target * 3 + 3) != 2 ) {
+                        System.out.println("STUN " +  opponentBusters.get(target * 3 + 2) );
+                        continue mainLoop;
+                    }
+                }
+
                 // carrying a ghost
                 if ( ghostBusters.get(i * 3 + 2) == 1 ) {
                     System.err.println(i + " is carrying a ghost");
@@ -70,10 +105,11 @@ class Player {
                     }
 
                 }
+
                 // at least one ghost in vicinity of the buster
                 else if (ghosts.size() > 0 ) {
                     ArrayList<Integer> distPerGhost = new ArrayList<Integer>();
-                    System.err.println( "ghosts * 3: " + ghosts.size() );
+                    // System.err.println( "near buster " + i + " ghosts*3: " + ghosts.size() );
                     for ( int j = 0; j < ghosts.size(); j += 3 ) {
                         int dist = distance( ghostBusters.get(i * 3),
                                      ghostBusters.get(i * 3 + 1),
@@ -85,7 +121,7 @@ class Player {
                     }
                     for (int k = 0; k < distPerGhost.size(); k++)
                         System.err.println("Dist of buster " + i + "to ghost " + k + " is " + distPerGhost.get(k));
-                    int targetGhost = GhostWithMinDist( distPerGhost );
+                    int targetGhost = ElementWithMinDist( distPerGhost );
                     int targetGhostDist = distPerGhost.get (targetGhost);
 
 
@@ -100,12 +136,12 @@ class Player {
                     for (int k = 2; k > -1; k--) {
                         ghosts.remove( targetGhost * 3 + k);
                     }
-                    System.err.println( "post removal ghosts * 3: " + ghosts.size() );
+                    // System.err.println( "post removal ghosts*3: " + ghosts.size() );
 
                 }
                 else { // nothing in vicinity
-                    if ( Math.abs( busterTargetXY.get(0) - ghostBusters.get(i * 3) ) < 1000 &&
-                         Math.abs( busterTargetXY.get(1) - ghostBusters.get(i * 3 + 1) ) < 1000) {
+                    if ( Math.abs( busterTargetXY.get(0) - ghostBusters.get(i * 3) ) < 500 &&
+                         Math.abs( busterTargetXY.get(1) - ghostBusters.get(i * 3 + 1) ) < 500) {
                         setNewTargetPoint();
                         System.out.println("MOVE " + busterTargetXY.get(0) + " " + busterTargetXY.get(1));
                     }
@@ -124,7 +160,7 @@ class Player {
         return (int) Math.floor( Math.sqrt( Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2) ) );
     }
 
-    public static int GhostWithMinDist(ArrayList<Integer> arr) {
+    public static int ElementWithMinDist(ArrayList<Integer> arr) {
         int temp = arr.get(0);
         int tempindex = 0;
         for ( int j = 1; j < arr.size(); j ++ ) {
@@ -145,8 +181,10 @@ class Player {
             busterTargetXY.set( 1, rand.nextInt(2) * 9000 );
         }
         else {
-            busterTargetXY.set( 1, rand.nextInt(2) * 16000 );
+            busterTargetXY.set( 0, rand.nextInt(2) * 16000 );
             busterTargetXY.set( 1, rand.nextInt(9000) );
         }
+        System.err.println("Setting new target " + busterTargetXY.get(0) + ", " + busterTargetXY.get(1));
+
     }
 }
