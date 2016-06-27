@@ -1,5 +1,4 @@
 # CodinGame_CodeBusters_Competition
-CodeBusters competition
 
 https://www.codingame.com/contests/codebusters
 
