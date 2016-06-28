@@ -29,8 +29,8 @@ class Player {
             homeY = 9000;
         }
 
-        busterTargetXY.add( Math.abs( homeX - 16000 ) );
-        busterTargetXY.add( Math.abs( homeY - 9000 ) );
+        busterTargetXY.add( Math.abs( homeX - 8000 ) );
+        busterTargetXY.add( Math.abs( homeY - 4500 ) );
 
         // game loop
         while (true) {
@@ -39,7 +39,7 @@ class Player {
             opponentBusters = new ArrayList<Integer>();
 
             int entities = in.nextInt(); // the number of busters and ghosts visible to you
-            for (int i = 0; i < entities; i++) {
+            for (int i = 0, tempIndex = 0; i < entities; i++) {
                 int entityId = in.nextInt(); // buster id or ghost id
                 int x = in.nextInt();
                 int y = in.nextInt(); // position of this buster / ghost
@@ -55,14 +55,18 @@ class Player {
                     ghosts.add(entityId);
                 }
                 else if ( entityType == myTeamId ) {
+                    tempIndex++;
                     ghostBusters.add(x);
-                    ghostBusters.add(y);
+                    ghostBusters.add(y); // location x,y
                     ghostBusters.add(state);
+                    ghostBusters.add( AdjustTarget( busterTargetXY.get(0) , tempIndex, bustersPerPlayer, 0 ) );
+                    ghostBusters.add( AdjustTarget( busterTargetXY.get(1) , tempIndex, bustersPerPlayer, 1 ) );
+
                 } else {
                     opponentBusters.add(x);
                     opponentBusters.add(y);
                     opponentBusters.add(entityId);
-                    opponentBusters.add(state);
+                    opponentBusters.add(state);  // stunned?
                 }
 
             }
@@ -72,11 +76,17 @@ class Player {
                  // at least one opponent in vicinity of the buster
                 if (opponentBusters.size() > 0) {
                     ArrayList<Integer> distPerOpponent = new ArrayList<Integer>();
-                    System.err.println( "near buster " + i +" Opp*4: " + opponentBusters.size() );
+                    // System.err.println( "near buster " + i +" Opp*4: " + opponentBusters.size() );
                     for ( int j = 0; j < opponentBusters.size(); j += 4 ) {
 
-                        int dist = distance( ghostBusters.get(i * 3),
-                                     ghostBusters.get(i * 3 + 1),
+                        System.err.println( "Opp:  " +
+                            opponentBusters.get(j) + "," +
+                            opponentBusters.get(j + 1) + " " +
+                            opponentBusters.get(j + 2) + " id " +
+                            opponentBusters.get(j + 3) + " state " );
+
+                        int dist = distance( ghostBusters.get(i * 5),
+                                     ghostBusters.get(i * 5 + 1),
                                      opponentBusters.get(j),
                                      opponentBusters.get(j + 1)
                                     );
@@ -89,16 +99,17 @@ class Player {
 
                     // only STUN if already in range, otherwise don't move towards them
                     // if opponent already stunned (status 2), no need to calculate distance
-                    if ( targetDist < 1760 && opponentBusters.get(target * 3 + 3) != 2 ) {
-                        System.out.println("STUN " +  opponentBusters.get(target * 3 + 2) );
+                    if ( targetDist < 1760 && opponentBusters.get(target * 4 + 3) != 2 ) {
+                        System.out.println("STUN " +  opponentBusters.get(target * 4 + 2) );
+
                         continue mainLoop;
                     }
                 }
 
                 // carrying a ghost
-                if ( ghostBusters.get(i * 3 + 2) == 1 ) {
+                if ( ghostBusters.get(i * 5 + 2) == 1 ) {
                     System.err.println(i + " is carrying a ghost");
-                    if ( ghostBusters.get(i * 3) == homeX && ghostBusters.get(i * 3 + 1) == homeY ) // reached home
+                    if ( ghostBusters.get(i * 5) == homeX && ghostBusters.get(i * 5 + 1) == homeY ) // reached home
                         System.out.println("RELEASE");
                     else {
                         System.out.println("MOVE " + homeX + " " + homeY); // move towards home
@@ -111,8 +122,8 @@ class Player {
                     ArrayList<Integer> distPerGhost = new ArrayList<Integer>();
                     // System.err.println( "near buster " + i + " ghosts*3: " + ghosts.size() );
                     for ( int j = 0; j < ghosts.size(); j += 3 ) {
-                        int dist = distance( ghostBusters.get(i * 3),
-                                     ghostBusters.get(i * 3 + 1),
+                        int dist = distance( ghostBusters.get(i * 5),
+                                     ghostBusters.get(i * 5 + 1),
                                      ghosts.get(j),
                                      ghosts.get(j + 1)
                                     );
@@ -120,7 +131,7 @@ class Player {
                         distPerGhost.add(dist);
                     }
                     for (int k = 0; k < distPerGhost.size(); k++)
-                        System.err.println("Dist of buster " + i + "to ghost " + k + " is " + distPerGhost.get(k));
+                        System.err.println("Dist of buster " + i + " to ghost " + k + " is " + distPerGhost.get(k));
                     int targetGhost = ElementWithMinDist( distPerGhost );
                     int targetGhostDist = distPerGhost.get (targetGhost);
 
@@ -128,8 +139,13 @@ class Player {
                     if ( targetGhostDist < 1760 && targetGhostDist > 900 ) {
                         System.out.println("BUST " +  ghosts.get(targetGhost * 3 + 2) );
                     }
-                    else {
+                    else if ( targetGhostDist > 1760 ) {
                         System.out.println("MOVE " + ghosts.get(targetGhost * 3) + " " + ghosts.get(targetGhost * 3 + 1) );
+                    }
+                    else if ( targetGhostDist < 900 ) {
+                        System.out.println("MOVE "
+                                + ( 2 * ghostBusters.get(i * 5) - ghosts.get(targetGhost * 3) ) + " "
+                                + ( 2 * ghostBusters.get(i * 5) - ghosts.get(targetGhost * 3 + 1) ) );
                     }
 
                     // remove all three elements for that ghost
@@ -140,15 +156,15 @@ class Player {
 
                 }
                 else { // nothing in vicinity
-                    if ( Math.abs( busterTargetXY.get(0) - ghostBusters.get(i * 3) ) < 500 &&
-                         Math.abs( busterTargetXY.get(1) - ghostBusters.get(i * 3 + 1) ) < 500) {
+                    if ( Math.abs( ghostBusters.get(i * 5 + 3) - ghostBusters.get(i * 5) ) < 950 &&
+                         Math.abs( ghostBusters.get(i * 5 + 4) - ghostBusters.get(i * 5 + 1) ) < 950 ) {
                         setNewTargetPoint();
-                        System.out.println("MOVE " + busterTargetXY.get(0) + " " + busterTargetXY.get(1));
+                        System.out.println("MOVE " + ghostBusters.get(i * 5 + 3) + " " + ghostBusters.get(i * 5 + 4) );
                     }
                     else {
-                        System.out.println("MOVE " + busterTargetXY.get(0) + " " + busterTargetXY.get(1));
+                        System.out.println("MOVE " +  ghostBusters.get(i * 5 + 3) + " " +  ghostBusters.get(i * 5 + 4) );
                     }
-                    System.err.println("Curr pos for " + i + " is " + ghostBusters.get(i * 3) + ", " + ghostBusters.get(i * 3 + 1));
+                    System.err.println("Curr pos for " + i + " is " + ghostBusters.get(i * 5) + ", " + ghostBusters.get(i * 5 + 1));
                 }
 
 
@@ -158,6 +174,24 @@ class Player {
 
     public static int distance(int x1, int y1, int x2, int y2) {
         return (int) Math.floor( Math.sqrt( Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2) ) );
+    }
+
+    public static int AdjustTarget(int initTarget, int tempIndex, int bustersPerPlayer, int vertical){ // spread players' target
+        int res = (int) Math.floor(
+            (initTarget * 0.6) + (initTarget * 0.4 * tempIndex * 2 / bustersPerPlayer)
+        );
+        if ( vertical == 1 ) {
+            if ( res > 9000 )
+                res = 9000;
+        }
+        else {
+            if ( res > 16000 )
+                res = 16000;
+        }
+        if ( res < 0 )
+            res = 0;
+        System.err.println("tempindex: "+ tempIndex + " res " + res);
+        return res;
     }
 
     public static int ElementWithMinDist(ArrayList<Integer> arr) {
