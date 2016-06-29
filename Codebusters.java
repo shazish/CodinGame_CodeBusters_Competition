@@ -7,7 +7,17 @@ import java.math.*;
  **/
 class Player {
     static Random rand;
-    static ArrayList<Integer> busterTargetXY;
+    static ArrayList<Integer> ghostBusters;
+    static ArrayList<Integer> scavStatus;
+    static ArrayList<Integer> opponentBusters;
+    static ArrayList<Integer> ghosts;
+    static int homeX;
+    static int homeY;
+
+    static final int busterMult = 3;
+    static final int scavMult = 3;
+    static final int oppMult = 4;
+    static final int ghostMult = 3;
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -17,25 +27,22 @@ class Player {
 
         rand = new Random();
 
-        ArrayList<Integer> ghosts = new ArrayList<Integer>();
-        ArrayList<Integer> ghostBusters = new ArrayList<Integer>();
-        ArrayList<Integer> opponentBusters = new ArrayList<Integer>();
-        busterTargetXY = new ArrayList<Integer>();
-
-        int homeX = 0;
-        int homeY = 0;
+        homeX = 0;
+        homeY = 0;
         if ( myTeamId == 1 ) {
             homeX = 16000;
             homeY = 9000;
         }
+        boolean justInitialized = false;
+        scavStatus = new ArrayList<Integer>(); // used to keep targets and scavenge level for each Buster
+        for (int n = 0; n < scavMult * bustersPerPlayer; n++) { scavStatus.add(0); } // dest x,y , scavenge level
 
-        busterTargetXY.add( Math.abs( homeX - 8000 ) );
-        busterTargetXY.add( Math.abs( homeY - 4500 ) );
 
         // game loop
         while (true) {
             ghosts = new ArrayList<Integer>();
             ghostBusters = new ArrayList<Integer>();
+
             opponentBusters = new ArrayList<Integer>();
 
             int entities = in.nextInt(); // the number of busters and ghosts visible to you
@@ -47,20 +54,15 @@ class Player {
                 int state = in.nextInt(); // For busters: 0=idle, 1=carrying a ghost.
                 int value = in.nextInt(); // For busters: Ghost id being carried. For ghosts: number of busters attempting to trap this ghost.
 
-
-
                 if ( entityType == -1 ) {
                     ghosts.add(x);
                     ghosts.add(y);
                     ghosts.add(entityId);
                 }
                 else if ( entityType == myTeamId ) {
-                    tempIndex++;
                     ghostBusters.add(x);
                     ghostBusters.add(y); // location x,y
                     ghostBusters.add(state);
-                    ghostBusters.add( AdjustTarget( busterTargetXY.get(0) , tempIndex, bustersPerPlayer, 0 ) );
-                    ghostBusters.add( AdjustTarget( busterTargetXY.get(1) , tempIndex, bustersPerPlayer, 1 ) );
 
                 } else {
                     opponentBusters.add(x);
@@ -72,12 +74,16 @@ class Player {
             }
             mainLoop:
             for (int i = 0; i < bustersPerPlayer; i++) {
-
+                // provide initial destination
+                if ( scavStatus.get( i * scavMult + 2 ) == 0 ) {
+                    System.err.println("scav call! " + scavStatus.get( i * scavMult + 2) );
+                    setNewTargetPoint(i, bustersPerPlayer);
+                }
                  // at least one opponent in vicinity of the buster
                 if (opponentBusters.size() > 0) {
                     ArrayList<Integer> distPerOpponent = new ArrayList<Integer>();
                     // System.err.println( "near buster " + i +" Opp*4: " + opponentBusters.size() );
-                    for ( int j = 0; j < opponentBusters.size(); j += 4 ) {
+                    for ( int j = 0; j < opponentBusters.size(); j += oppMult ) {
 
                         System.err.println( "Opp:  " +
                             opponentBusters.get(j) + "," +
@@ -85,8 +91,8 @@ class Player {
                             opponentBusters.get(j + 2) + " id " +
                             opponentBusters.get(j + 3) + " state " );
 
-                        int dist = distance( ghostBusters.get(i * 5),
-                                     ghostBusters.get(i * 5 + 1),
+                        int dist = distance( ghostBusters.get(i * busterMult),
+                                     ghostBusters.get(i * busterMult + 1),
                                      opponentBusters.get(j),
                                      opponentBusters.get(j + 1)
                                     );
@@ -99,31 +105,38 @@ class Player {
 
                     // only STUN if already in range, otherwise don't move towards them
                     // if opponent already stunned (status 2), no need to calculate distance
-                    if ( targetDist < 1760 && opponentBusters.get(target * 4 + 3) != 2 ) {
-                        System.out.println("STUN " +  opponentBusters.get(target * 4 + 2) );
+                    // if carrying a ghost, ignore opponent (maybe only if paralyzed?)
+                    if ( targetDist < 1760
+                        && opponentBusters.get(target * oppMult + 3) != 2
+                        // && ghostBusters.get(i * busterMult + 2) != 1
+                        ) {
+                        System.out.println("STUN " +  opponentBusters.get(target * oppMult + 2) );
 
                         continue mainLoop;
                     }
                 }
 
-                // carrying a ghost
-                if ( ghostBusters.get(i * 5 + 2) == 1 ) {
+                // CASE: Carrying a ghost
+                if ( ghostBusters.get(i * busterMult + 2) == 1 ) {
                     System.err.println(i + " is carrying a ghost");
-                    if ( ghostBusters.get(i * 5) == homeX && ghostBusters.get(i * 5 + 1) == homeY ) // reached home
-                        System.out.println("RELEASE");
+                    if ( distance( homeX,
+                            homeY,
+                            ghostBusters.get(i * busterMult),
+                            ghostBusters.get(i * busterMult + 1) ) < 1600 )
+                        System.out.println("RELEASE");  // close enough to release captured ghost
                     else {
                         System.out.println("MOVE " + homeX + " " + homeY); // move towards home
                     }
 
                 }
 
-                // at least one ghost in vicinity of the buster
+                // CASE: At least one ghost in vicinity of the buster
                 else if (ghosts.size() > 0 ) {
                     ArrayList<Integer> distPerGhost = new ArrayList<Integer>();
                     // System.err.println( "near buster " + i + " ghosts*3: " + ghosts.size() );
-                    for ( int j = 0; j < ghosts.size(); j += 3 ) {
-                        int dist = distance( ghostBusters.get(i * 5),
-                                     ghostBusters.get(i * 5 + 1),
+                    for ( int j = 0; j < ghosts.size(); j += ghostMult ) {
+                        int dist = distance( ghostBusters.get(i * busterMult),
+                                     ghostBusters.get(i * busterMult + 1),
                                      ghosts.get(j),
                                      ghosts.get(j + 1)
                                     );
@@ -137,34 +150,32 @@ class Player {
 
 
                     if ( targetGhostDist < 1760 && targetGhostDist > 900 ) {
-                        System.out.println("BUST " +  ghosts.get(targetGhost * 3 + 2) );
+                        System.out.println("BUST " +  ghosts.get(targetGhost * ghostMult + 2) );
                     }
                     else if ( targetGhostDist > 1760 ) {
-                        System.out.println("MOVE " + ghosts.get(targetGhost * 3) + " " + ghosts.get(targetGhost * 3 + 1) );
+                        System.out.println("MOVE " + ghosts.get(targetGhost * ghostMult) + " " + ghosts.get(targetGhost * ghostMult + 1) );
                     }
-                    else if ( targetGhostDist < 900 ) {
+                    else if ( targetGhostDist < 900 ) { // get back in order to be in capture range
+                        System.err.println("ghost too close, getting back!");
                         System.out.println("MOVE "
-                                + ( 2 * ghostBusters.get(i * 5) - ghosts.get(targetGhost * 3) ) + " "
-                                + ( 2 * ghostBusters.get(i * 5) - ghosts.get(targetGhost * 3 + 1) ) );
+                                + ( 2 * ghostBusters.get(i * busterMult) - ghosts.get(targetGhost * ghostMult) ) + " "
+                                + ( 2 * ghostBusters.get(i * busterMult) - ghosts.get(targetGhost * ghostMult + 1) ) );
                     }
 
                     // remove all three elements for that ghost
                     for (int k = 2; k > -1; k--) {
-                        ghosts.remove( targetGhost * 3 + k);
+                        ghosts.remove( targetGhost * ghostMult + k);
                     }
                     // System.err.println( "post removal ghosts*3: " + ghosts.size() );
 
                 }
                 else { // nothing in vicinity
-                    if ( Math.abs( ghostBusters.get(i * 5 + 3) - ghostBusters.get(i * 5) ) < 950 &&
-                         Math.abs( ghostBusters.get(i * 5 + 4) - ghostBusters.get(i * 5 + 1) ) < 950 ) {
-                        setNewTargetPoint();
-                        System.out.println("MOVE " + ghostBusters.get(i * 5 + 3) + " " + ghostBusters.get(i * 5 + 4) );
+                    if ( Math.abs( scavStatus.get(i * scavMult ) - ghostBusters.get(i * busterMult) ) < 250 &&
+                         Math.abs( scavStatus.get(i * scavMult + 1) - ghostBusters.get(i * busterMult + 1) ) < 250 ) {
+                        setNewTargetPoint(i, bustersPerPlayer);
                     }
-                    else {
-                        System.out.println("MOVE " +  ghostBusters.get(i * 5 + 3) + " " +  ghostBusters.get(i * 5 + 4) );
-                    }
-                    System.err.println("Curr pos for " + i + " is " + ghostBusters.get(i * 5) + ", " + ghostBusters.get(i * 5 + 1));
+                    System.out.println("MOVE " + scavStatus.get(i * scavMult) + " " + scavStatus.get(i * scavMult + 1) );
+                    System.err.println("Curr pos for " + i + " is " + ghostBusters.get(i * busterMult) + ", " + ghostBusters.get(i * busterMult + 1));
                 }
 
 
@@ -176,23 +187,6 @@ class Player {
         return (int) Math.floor( Math.sqrt( Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2) ) );
     }
 
-    public static int AdjustTarget(int initTarget, int tempIndex, int bustersPerPlayer, int vertical){ // spread players' target
-        int res = (int) Math.floor(
-            (initTarget * 0.6) + (initTarget * 0.4 * tempIndex * 2 / bustersPerPlayer)
-        );
-        if ( vertical == 1 ) {
-            if ( res > 9000 )
-                res = 9000;
-        }
-        else {
-            if ( res > 16000 )
-                res = 16000;
-        }
-        if ( res < 0 )
-            res = 0;
-        System.err.println("tempindex: "+ tempIndex + " res " + res);
-        return res;
-    }
 
     public static int ElementWithMinDist(ArrayList<Integer> arr) {
         int temp = arr.get(0);
@@ -207,18 +201,53 @@ class Player {
         return tempindex;
     }
 
-    public static void setNewTargetPoint() {
+    public static void setNewTargetPoint( int busterIndex, int bustersPerPlayer ) {
+
+        int radius = -1;
+        int degree = -1;
+        switch( scavStatus.get( busterIndex * scavMult  + 2 ) ) {
+            case 0:
+                radius = 7000;
+                degree = 90;
+                break;
+            case 1:
+                radius = 9500;
+                degree = 65;
+                break;
+            case 2:
+                radius = 13000;
+                degree = 55;
+                break;
+            default:
+                radius = -1;
+                break;
+        }
+
+        scavStatus.set( busterIndex * scavMult + 2, scavStatus.get( busterIndex * scavMult + 2) + 1 ); // scavenge round for the buster++
+        System.err.println("Scav lvl is now " + scavStatus.get( busterIndex * scavMult + 2) );
+
+        double degreeRad =  Math.toRadians( degree * (busterIndex + 1) / (bustersPerPlayer + 1) );
+
+        scavStatus.set( busterIndex * scavMult,
+            (int) Math.floor( Math.abs( homeX - radius * Math.cos(degreeRad) ) ) );
+        scavStatus.set( busterIndex * scavMult + 1,
+            (int) Math.floor( Math.abs( homeY - radius * Math.sin(degreeRad) ) ) );
 
         // make sure the new point touches the edge
-        if ( rand.nextInt(2) < 1 ) {
-            busterTargetXY.set( 0, rand.nextInt(16000) );
-            busterTargetXY.set( 1, rand.nextInt(2) * 9000 );
+        if (radius == -1) {
+            if ( rand.nextInt(2) < 1 ) {
+                scavStatus.set( busterIndex * scavMult,  rand.nextInt(16000) );
+                scavStatus.set( busterIndex * scavMult + 1,  rand.nextInt(2) * 9000 );
+            }
+            else {
+                scavStatus.set( busterIndex * scavMult,  rand.nextInt(2) * 16000 );
+                scavStatus.set( busterIndex * scavMult + 1,  rand.nextInt(9000) );
+            }
         }
-        else {
-            busterTargetXY.set( 0, rand.nextInt(2) * 16000 );
-            busterTargetXY.set( 1, rand.nextInt(9000) );
-        }
-        System.err.println("Setting new target " + busterTargetXY.get(0) + ", " + busterTargetXY.get(1));
+
+        System.err.println("Setting new target for " + busterIndex + ": " +
+            scavStatus.get( busterIndex * scavMult ) + ", " +
+            scavStatus.get( busterIndex * scavMult + 1) );
 
     }
 }
