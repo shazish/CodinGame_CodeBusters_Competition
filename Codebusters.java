@@ -17,7 +17,7 @@ class Player {
     static final int busterMult = 3;
     static final int scavMult = 3;
     static final int oppMult = 4;
-    static final int ghostMult = 3;
+    static final int ghostMult = 4;
 
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
@@ -58,6 +58,7 @@ class Player {
                     ghosts.add(x);
                     ghosts.add(y);
                     ghosts.add(entityId);
+                    ghosts.add(state); // ghost stamina
                 }
                 else if ( entityType == myTeamId ) {
                     ghostBusters.add(x);
@@ -79,7 +80,7 @@ class Player {
                     System.err.println("scav call! " + scavStatus.get( i * scavMult + 2) );
                     setNewTargetPoint(i, bustersPerPlayer);
                 }
-                 // at least one opponent in vicinity of the buster
+                 // CASE: At least one opponent in the vicinity of the buster
                 if (opponentBusters.size() > 0) {
                     ArrayList<Integer> distPerOpponent = new ArrayList<Integer>();
                     // System.err.println( "near buster " + i +" Opp*4: " + opponentBusters.size() );
@@ -87,9 +88,9 @@ class Player {
 
                         System.err.println( "Opp:  " +
                             opponentBusters.get(j) + "," +
-                            opponentBusters.get(j + 1) + " " +
-                            opponentBusters.get(j + 2) + " id " +
-                            opponentBusters.get(j + 3) + " state " );
+                            opponentBusters.get(j + 1) + " id: " +
+                            opponentBusters.get(j + 2) + " state: " +
+                            opponentBusters.get(j + 3) );
 
                         int dist = distance( ghostBusters.get(i * busterMult),
                                      ghostBusters.get(i * busterMult + 1),
@@ -133,6 +134,7 @@ class Player {
                 // CASE: At least one ghost in vicinity of the buster
                 else if (ghosts.size() > 0 ) {
                     ArrayList<Integer> distPerGhost = new ArrayList<Integer>();
+                    ArrayList<Integer> staminaPerGhost = new ArrayList<Integer>();
                     // System.err.println( "near buster " + i + " ghosts*3: " + ghosts.size() );
                     for ( int j = 0; j < ghosts.size(); j += ghostMult ) {
                         int dist = distance( ghostBusters.get(i * busterMult),
@@ -140,12 +142,15 @@ class Player {
                                      ghosts.get(j),
                                      ghosts.get(j + 1)
                                     );
+                        int stamina = ghosts.get(j + 3);
+
 
                         distPerGhost.add(dist);
+                        staminaPerGhost.add(stamina);
                     }
                     for (int k = 0; k < distPerGhost.size(); k++)
                         System.err.println("Dist of buster " + i + " to ghost " + k + " is " + distPerGhost.get(k));
-                    int targetGhost = ElementWithMinDist( distPerGhost );
+                    int targetGhost = ElementWithMinDist( staminaPerGhost ); // replacing distPerGhost with staminaPerGhost
                     int targetGhostDist = distPerGhost.get (targetGhost);
 
 
@@ -162,22 +167,16 @@ class Player {
                                 + ( 2 * ghostBusters.get(i * busterMult) - ghosts.get(targetGhost * ghostMult + 1) ) );
                     }
 
-                    // remove all three elements for that ghost
-                    for (int k = 2; k > -1; k--) {
-                        ghosts.remove( targetGhost * ghostMult + k);
-                    }
+                    // // remove all three elements for that ghost
+                    // for (int k = 2; k > -1; k--) {
+                    //     ghosts.remove( targetGhost * ghostMult + k);
+                    // }
                     // System.err.println( "post removal ghosts*3: " + ghosts.size() );
 
                 }
                 else { // nothing in vicinity
-                    if ( Math.abs( scavStatus.get(i * scavMult ) - ghostBusters.get(i * busterMult) ) < 250 &&
-                         Math.abs( scavStatus.get(i * scavMult + 1) - ghostBusters.get(i * busterMult + 1) ) < 250 ) {
-                        setNewTargetPoint(i, bustersPerPlayer);
-                    }
-                    System.out.println("MOVE " + scavStatus.get(i * scavMult) + " " + scavStatus.get(i * scavMult + 1) );
-                    System.err.println("Curr pos for " + i + " is " + ghostBusters.get(i * busterMult) + ", " + ghostBusters.get(i * busterMult + 1));
+                    MoveNormally();
                 }
-
 
             }
         }
@@ -187,6 +186,14 @@ class Player {
         return (int) Math.floor( Math.sqrt( Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2) ) );
     }
 
+    public static void MoveNormally() {
+        if ( Math.abs( scavStatus.get(i * scavMult ) - ghostBusters.get(i * busterMult) ) < 250 &&
+             Math.abs( scavStatus.get(i * scavMult + 1) - ghostBusters.get(i * busterMult + 1) ) < 250 ) {
+            setNewTargetPoint(i, bustersPerPlayer);
+        }
+        System.out.println("MOVE " + scavStatus.get(i * scavMult) + " " + scavStatus.get(i * scavMult + 1) );
+        System.err.println("Curr pos for " + i + " is " + ghostBusters.get(i * busterMult) + ", " + ghostBusters.get(i * busterMult + 1));
+    }
 
     public static int ElementWithMinDist(ArrayList<Integer> arr) {
         int temp = arr.get(0);
