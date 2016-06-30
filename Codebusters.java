@@ -108,7 +108,7 @@ class Player {
                     // if opponent already stunned (status 2), no need to calculate distance
                     // if carrying a ghost, ignore opponent (maybe only if paralyzed?)
                     if ( targetDist < 1760
-                        && opponentBusters.get(target * oppMult + 3) != 2
+                         && opponentBusters.get(target * oppMult + 3) != 2
                         // && ghostBusters.get(i * busterMult + 2) != 1
                         ) {
                         System.out.println("STUN " +  opponentBusters.get(target * oppMult + 2) );
@@ -153,8 +153,11 @@ class Player {
                     int targetGhost = ElementWithMinDist( staminaPerGhost ); // replacing distPerGhost with staminaPerGhost
                     int targetGhostDist = distPerGhost.get (targetGhost);
 
-
-                    if ( targetGhostDist < 1760 && targetGhostDist > 900 ) {
+                    if ( staminaPerGhost.get(targetGhost) > 10 && scavStatus.get( i * scavMult + 2 ) < 3 ) {
+                        MoveNormally(i, bustersPerPlayer); // don't waste time on ghosts with high stamina unless we're not at the early stages
+                        System.err.println("don't waste time on ghosts with high stamina: " + staminaPerGhost.get(targetGhost));
+                    }
+                    else if ( targetGhostDist < 1760 && targetGhostDist > 900 ) {
                         System.out.println("BUST " +  ghosts.get(targetGhost * ghostMult + 2) );
                     }
                     else if ( targetGhostDist > 1760 ) {
@@ -175,7 +178,7 @@ class Player {
 
                 }
                 else { // nothing in vicinity
-                    MoveNormally();
+                    MoveNormally(i, bustersPerPlayer);
                 }
 
             }
@@ -186,13 +189,13 @@ class Player {
         return (int) Math.floor( Math.sqrt( Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2) ) );
     }
 
-    public static void MoveNormally() {
-        if ( Math.abs( scavStatus.get(i * scavMult ) - ghostBusters.get(i * busterMult) ) < 250 &&
-             Math.abs( scavStatus.get(i * scavMult + 1) - ghostBusters.get(i * busterMult + 1) ) < 250 ) {
-            setNewTargetPoint(i, bustersPerPlayer);
+    public static void MoveNormally(int busterIndex, int bustersPerPlayer) {
+        if ( Math.abs( scavStatus.get(busterIndex * scavMult ) - ghostBusters.get(busterIndex * busterMult) ) < 250 &&
+             Math.abs( scavStatus.get(busterIndex * scavMult + 1) - ghostBusters.get(busterIndex * busterMult + 1) ) < 250 ) {
+            setNewTargetPoint(busterIndex, bustersPerPlayer);
         }
-        System.out.println("MOVE " + scavStatus.get(i * scavMult) + " " + scavStatus.get(i * scavMult + 1) );
-        System.err.println("Curr pos for " + i + " is " + ghostBusters.get(i * busterMult) + ", " + ghostBusters.get(i * busterMult + 1));
+        System.out.println("MOVE " + scavStatus.get(busterIndex * scavMult) + " " + scavStatus.get(busterIndex * scavMult + 1) );
+        System.err.println("Curr pos for " + busterIndex + " is " + ghostBusters.get(busterIndex * busterMult) + ", " + ghostBusters.get(busterIndex * busterMult + 1));
     }
 
     public static int ElementWithMinDist(ArrayList<Integer> arr) {
@@ -210,8 +213,8 @@ class Player {
 
     public static void setNewTargetPoint( int busterIndex, int bustersPerPlayer ) {
 
-        int radius = -1;
-        int degree = -1;
+        int radius = -999;
+        int degree = -999;
         switch( scavStatus.get( busterIndex * scavMult  + 2 ) ) {
             case 0:
                 radius = 7000;
@@ -223,10 +226,13 @@ class Player {
                 break;
             case 2:
                 radius = 13000;
-                degree = 55;
+                degree = 50;
+                break;
+            case 3:
+                radius = -1; // check edges
                 break;
             default:
-                radius = -1;
+                degree = -1;
                 break;
         }
 
@@ -240,8 +246,12 @@ class Player {
         scavStatus.set( busterIndex * scavMult + 1,
             (int) Math.floor( Math.abs( homeY - radius * Math.sin(degreeRad) ) ) );
 
-        // make sure the new point touches the edge
-        if (radius == -1) {
+        if (radius == -1) { // all buster destinations should be 16000,0 or 0,9000
+            scavStatus.set( busterIndex * scavMult,  15000 * (busterIndex % 2) );
+            scavStatus.set( busterIndex * scavMult + 1,  8000 * ( (busterIndex + 1) % 2) );
+        }
+
+        if (degree == -1) { // make sure the new dest touches the edge
             if ( rand.nextInt(2) < 1 ) {
                 scavStatus.set( busterIndex * scavMult,  rand.nextInt(16000) );
                 scavStatus.set( busterIndex * scavMult + 1,  rand.nextInt(2) * 9000 );
