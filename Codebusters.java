@@ -77,20 +77,21 @@ class Player {
             for (int i = 0; i < bustersPerPlayer; i++) {
                 // provide initial destination
                 if ( scavStatus.get( i * scavMult + 2 ) == 0 ) {
-                    System.err.println("scav call! " + scavStatus.get( i * scavMult + 2) );
                     setNewTargetPoint(i, bustersPerPlayer);
                 }
+
+
                  // CASE: At least one opponent in the vicinity of the buster
                 if (opponentBusters.size() > 0) {
                     ArrayList<Integer> distPerOpponent = new ArrayList<Integer>();
                     // System.err.println( "near buster " + i +" Opp*4: " + opponentBusters.size() );
                     for ( int j = 0; j < opponentBusters.size(); j += oppMult ) {
 
-                        System.err.println( "Opp:  " +
-                            opponentBusters.get(j) + "," +
-                            opponentBusters.get(j + 1) + " id: " +
-                            opponentBusters.get(j + 2) + " state: " +
-                            opponentBusters.get(j + 3) );
+                        // System.err.println( "Opp:  " +
+                        //     opponentBusters.get(j) + "," +
+                        //     opponentBusters.get(j + 1) + " id: " +
+                        //     opponentBusters.get(j + 2) + " state: " +
+                        //     opponentBusters.get(j + 3) );
 
                         int dist = distance( ghostBusters.get(i * busterMult),
                                      ghostBusters.get(i * busterMult + 1),
@@ -115,6 +116,7 @@ class Player {
 
                         continue mainLoop;
                     }
+
                 }
 
                 // CASE: Carrying a ghost
@@ -135,7 +137,7 @@ class Player {
                 else if (ghosts.size() > 0 ) {
                     ArrayList<Integer> distPerGhost = new ArrayList<Integer>();
                     ArrayList<Integer> staminaPerGhost = new ArrayList<Integer>();
-                    // System.err.println( "near buster " + i + " ghosts*3: " + ghosts.size() );
+
                     for ( int j = 0; j < ghosts.size(); j += ghostMult ) {
                         int dist = distance( ghostBusters.get(i * busterMult),
                                      ghostBusters.get(i * busterMult + 1),
@@ -153,14 +155,17 @@ class Player {
                     int targetGhost = ElementWithMinDist( staminaPerGhost ); // replacing distPerGhost with staminaPerGhost
                     int targetGhostDist = distPerGhost.get (targetGhost);
 
-                    if ( staminaPerGhost.get(targetGhost) > 10 && scavStatus.get( i * scavMult + 2 ) < 3 ) {
+                    if ( staminaPerGhost.get(targetGhost) > 15 )
+                    // && scavStatus.get( i * scavMult + 2 ) < 3 ) // until scavenge level 3
+                    {
                         MoveNormally(i, bustersPerPlayer); // don't waste time on ghosts with high stamina unless we're not at the early stages
                         System.err.println("don't waste time on ghosts with high stamina: " + staminaPerGhost.get(targetGhost));
                     }
-                    else if ( targetGhostDist < 1760 && targetGhostDist > 900 ) {
+                    else if ( targetGhostDist <= 1760 && targetGhostDist >= 900 ) {
                         System.out.println("BUST " +  ghosts.get(targetGhost * ghostMult + 2) );
                     }
                     else if ( targetGhostDist > 1760 ) {
+                        System.err.println(i + " moves toward ghost " + ghosts.get(targetGhost * ghostMult + 2) );
                         System.out.println("MOVE " + ghosts.get(targetGhost * ghostMult) + " " + ghosts.get(targetGhost * ghostMult + 1) );
                     }
                     else if ( targetGhostDist < 900 ) { // get back in order to be in capture range
@@ -169,12 +174,6 @@ class Player {
                                 + ( 2 * ghostBusters.get(i * busterMult) - ghosts.get(targetGhost * ghostMult) ) + " "
                                 + ( 2 * ghostBusters.get(i * busterMult) - ghosts.get(targetGhost * ghostMult + 1) ) );
                     }
-
-                    // // remove all three elements for that ghost
-                    // for (int k = 2; k > -1; k--) {
-                    //     ghosts.remove( targetGhost * ghostMult + k);
-                    // }
-                    // System.err.println( "post removal ghosts*3: " + ghosts.size() );
 
                 }
                 else { // nothing in vicinity
@@ -190,8 +189,8 @@ class Player {
     }
 
     public static void MoveNormally(int busterIndex, int bustersPerPlayer) {
-        if ( Math.abs( scavStatus.get(busterIndex * scavMult ) - ghostBusters.get(busterIndex * busterMult) ) < 250 &&
-             Math.abs( scavStatus.get(busterIndex * scavMult + 1) - ghostBusters.get(busterIndex * busterMult + 1) ) < 250 ) {
+        if ( Math.abs( scavStatus.get(busterIndex * scavMult ) - ghostBusters.get(busterIndex * busterMult) ) < 750 &&
+             Math.abs( scavStatus.get(busterIndex * scavMult + 1) - ghostBusters.get(busterIndex * busterMult + 1) ) < 750 ) {
             setNewTargetPoint(busterIndex, bustersPerPlayer);
         }
         System.out.println("MOVE " + scavStatus.get(busterIndex * scavMult) + " " + scavStatus.get(busterIndex * scavMult + 1) );
@@ -225,12 +224,12 @@ class Player {
                 degree = 65;
                 break;
             case 2:
-                radius = 13000;
-                degree = 50;
+                radius = 12000;
+                degree = 45;
                 break;
-            case 3:
-                radius = -1; // check edges
-                break;
+            // case 3:
+            //     radius = -1; // check edges
+            //     break;
             default:
                 degree = -1;
                 break;
@@ -251,15 +250,22 @@ class Player {
             scavStatus.set( busterIndex * scavMult + 1,  8000 * ( (busterIndex + 1) % 2) );
         }
 
-        if (degree == -1) { // make sure the new dest touches the edge
-            if ( rand.nextInt(2) < 1 ) {
-                scavStatus.set( busterIndex * scavMult,  rand.nextInt(16000) );
-                scavStatus.set( busterIndex * scavMult + 1,  rand.nextInt(2) * 9000 );
-            }
-            else {
-                scavStatus.set( busterIndex * scavMult,  rand.nextInt(2) * 16000 );
-                scavStatus.set( busterIndex * scavMult + 1,  rand.nextInt(9000) );
-            }
+        if (degree == -1) { // Stand nearby enemy dropbox!
+
+          degreeRad =  Math.toRadians( 20 + (70 * busterIndex / bustersPerPlayer) );
+          scavStatus.set( busterIndex * scavMult,
+            (int) Math.floor( Math.abs( homeX - 16000 + 3500 * Math.cos(degreeRad) ) ) );
+          scavStatus.set( busterIndex * scavMult + 1,
+            (int) Math.floor( Math.abs( homeY - 9000 + 3500 * Math.sin(degreeRad) ) ) );
+
+            // if ( rand.nextInt(2) < 1 ) {
+            //     scavStatus.set( busterIndex * scavMult,  rand.nextInt(16000) );
+            //     scavStatus.set( busterIndex * scavMult + 1,  rand.nextInt(2) * 9000 );
+            // }
+            // else {
+            //     scavStatus.set( busterIndex * scavMult,  rand.nextInt(2) * 16000 );
+            //     scavStatus.set( busterIndex * scavMult + 1,  rand.nextInt(9000) );
+            // }
         }
 
         System.err.println("Setting new target for " + busterIndex + ": " +
